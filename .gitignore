@@ -1,0 +1,32 @@
+# Credenciais e certificados digitais
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pfx
+*.p12
+*.pem
+*.key
+
+# Banco SQLite local e arquivos auxiliares
+*.db
+*.db-*
+*.sqlite3
+*.sqlite3-*
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# React / Vite
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Arquivos locais
+.idea/
+*.log
+.DS_Store
+Thumbs.db
