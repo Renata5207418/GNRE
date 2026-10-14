@@ -21,10 +21,10 @@ class Settings(BaseSettings):
 
     AUTH_COOKIE_SECURE: bool = False
 
-    M365_TENANT_ID: str | None = None
-    M365_CLIENT_ID: str | None = None
-    M365_CLIENT_SECRET: str | None = None
-    M365_SENDER_EMAIL: str | None = None
+    SMTP_SERVER: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
 
     FRONTEND_PUBLIC_URL: str = "http://127.0.0.1:5173"
 

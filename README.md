@@ -264,10 +264,10 @@ AUTH_COOKIE_SECURE=false
 FRONTEND_PUBLIC_URL=http://127.0.0.1:5173
 CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 
-M365_TENANT_ID=
-M365_CLIENT_ID=
-M365_CLIENT_SECRET=
-M365_SENDER_EMAIL=
+SMTP_SERVER: str = ""
+SMTP_PORT: int = 587
+SMTP_USER: str = ""
+SMTP_PASSWORD: str = ""
 
 CERTIFICATE_ENCRYPTION_KEY=
 GNRE_ADMIN_API_KEY=
@@ -306,21 +306,63 @@ GNRE_RESULTADO_WEBSERVICE_URL=https://www.gnre.pe.gov.br/gnreWS/services/GnreRes
 
 ## 📌 Situação atual do projeto
 
-O sistema já possui interface e serviços para:
+O **GUIA GNRE** encontra-se em fase de finalização, com a interface, os serviços internos e o fluxo de integração GNRE implementados.
 
-- autenticação;
-- dashboard de acompanhamento;
-- validação de planilhas;
-- listagem de guias;
-- download e exportação de arquivos;
-- gestão de certificados digitais;
-- base de integração com XML, assinatura e SOAP.
+### Funcionalidades implementadas
 
-### Pontos que merecem atenção
-- finalizar e conectar o fluxo completo de emissão/consulta GNRE;
-- criar a rota de confirmação para o worker de processamento;
-- revisar regras de proteção contra duplicidade;
-- reforçar perfis de acesso e endurecimento de segurança antes de produção.
+- Autenticação de usuários e recuperação de senha;
+- Dashboard e acompanhamento de guias;
+- Importação e validação de planilhas Excel;
+- Controle de processamento e prevenção de envios duplicados;
+- Cadastro, armazenamento criptografado e vínculo de certificados digitais A1;
+- Conversão de certificados PFX/P12 para material PEM;
+- Geração e assinatura digital de XML GNRE 2.00;
+- Montagem de requisições SOAP para integração com o webservice GNRE;
+- Tratamento de recibos, consulta de processamento e respostas com PDFs;
+- Download e exportação de guias e resultados.
+
+### Testes realizados
+
+Foram realizados testes locais para validar os componentes essenciais da integração, incluindo:
+
+- Recuperação e leitura do certificado digital armazenado;
+- Verificação de correspondência entre certificado e chave privada;
+- Geração e assinatura digital do XML;
+- Verificação criptográfica da assinatura;
+- Carregamento do material PEM pela biblioteca SSL;
+- Preservação da assinatura digital após a montagem do envelope SOAP;
+- Validação de planilhas e execução das rotinas internas de processamento.
+
+**Os testes locais de certificado e assinatura foram concluídos com sucesso.**
+
+### Limitação dos testes de integração
+
+**A emissão real de uma GNRE pelo novo sistema ainda não foi validada com sucesso.**
+
+Foram realizadas tentativas de integração utilizando o ambiente de homologação da GNRE, mas a comunicação foi interrompida durante a validação HTTPS do certificado apresentado pelo servidor.
+
+O endereço de homologação utilizado apresentou incompatibilidade entre o nome do domínio acessado e o certificado SSL/TLS disponibilizado, resultando no erro:
+
+`SSL: CERTIFICATE_VERIFY_FAILED — Hostname mismatch`
+
+O problema foi reproduzido por meio de testes com cURL e Python Requests.
+
+Consequentemente, ainda não foram comprovadas, em uma operação completa com o webservice oficial:
+
+- a aceitação do XML assinado pelo serviço GNRE;
+- a obtenção de um recibo real de processamento;
+- a consulta bem-sucedida do lote transmitido;
+- o recebimento e armazenamento de um PDF real gerado pelo webservice.
+
+### Considerações antes da utilização em produção
+
+A integração está implementada e passou pelas validações técnicas locais, mas **não deve ser considerada homologada para utilização em produção sem um teste real, controlado e autorizado**.
+
+Antes da liberação operacional, recomenda-se validar o envio e a consulta no ambiente oficial apropriado, conferir os recibos e PDFs retornados e revisar possíveis processamentos com resultado indeterminado.
+
+O envio de guias permanece sujeito à configuração explícita `GNRE_ENVIOS_HABILITADOS`, desabilitada por padrão no exemplo de configuração.
+
+**Status da integração GNRE:** implementada, com validações locais concluídas e teste completo de emissão real ainda pendente.
 
 ---
 

@@ -129,8 +129,8 @@ export default function RecuperarSenhaPage() {
               className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800"
             >
               A recuperação por e-mail ainda não está
-              configurada neste ambiente. Solicite a
-              configuração do Microsoft 365.
+              configurada neste ambiente. Verifique a
+              configuração SMTP do servidor.
             </div>
           )}
 

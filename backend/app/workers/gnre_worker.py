@@ -1,5 +1,6 @@
 from __future__ import annotations
 import re
+import time
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -405,13 +406,8 @@ def _consultar_recibo_e_atualizar(
     }
 
 
-def _emitir_nova_guia(
-    db: Session,
-    linha: LinhaValidaGNRE,
-    *,
-    ambiente: str,
-    confirmacao_explicita: bool,
-) -> dict[str, Any]:
+
+def _emitir_nova_guia(db: Session, linha: LinhaValidaGNRE, *, ambiente: str, confirmacao_explicita: bool) -> dict[str, Any]:
     try:
         xml = gerar_xml_gnre(linha)
     except Exception as exc:
@@ -424,6 +420,18 @@ def _emitir_nova_guia(
             "guia_id": registro.id,
         }
 
+    # Registra a tentativa ANTES de acessar o webservice.
+    # Se o processo encerrar durante o envio, haverá um
+    # registro sem recibo que impede reenvio automático.
+    registro = _criar_registro_base(linha)
+    registro.status = STATUS_ERRO_CONSULTA
+    registro.erro_mensagem = (
+        "Tentativa de emissão registrada antes da transmissão. "
+        "Se o processamento for interrompido, verificar a "
+        "situação da guia antes de reenviar."
+    )
+    registro = _salvar(db, registro)
+
     try:
         resposta = enviar_lote_gnre(
             db,
@@ -431,15 +439,19 @@ def _emitir_nova_guia(
             xml_nao_assinado=xml,
             confirmacao_explicita=confirmacao_explicita,
         )
+
     except EnvioGNREIndeterminado as exc:
-        registro = _criar_registro_base(linha)
-        registro.status = STATUS_ERRO_CONSULTA
-        registro.erro_mensagem = (
-            "Envio com resultado indeterminado. "
-            "Não reenviar automaticamente. "
-            f"Detalhes: {_erro_texto(exc)}"
-        )[:2000]
-        registro = _salvar(db, registro)
+        registro = _atualizar_registro(
+            db,
+            registro,
+            status=STATUS_ERRO_CONSULTA,
+            mensagem=(
+                "Envio com resultado indeterminado. "
+                "Não reenviar automaticamente. "
+                f"Detalhes: {_erro_texto(exc)}"
+            ),
+        )
+
         return {
             **linha.resumo(),
             "status": registro.status,
@@ -447,8 +459,15 @@ def _emitir_nova_guia(
             "mensagem": registro.erro_mensagem,
             "guia_id": registro.id,
         }
-    except (ErroGNRESOAP, Exception) as exc:
-        registro = _registrar_erro_validacao(db, linha, _erro_texto(exc))
+
+    except ErroGNRESOAP as exc:
+        registro = _atualizar_registro(
+            db,
+            registro,
+            status=STATUS_ERRO_VALIDACAO,
+            mensagem=_erro_texto(exc),
+        )
+
         return {
             **linha.resumo(),
             "status": registro.status,
@@ -457,17 +476,43 @@ def _emitir_nova_guia(
             "guia_id": registro.id,
         }
 
+    except Exception as exc:
+        registro = _atualizar_registro(
+            db,
+            registro,
+            status=STATUS_ERRO_CONSULTA,
+            mensagem=(
+                "Falha inesperada durante a emissão. "
+                "Resultado não confirmado. "
+                "Não reenviar automaticamente. "
+                f"Detalhes: {_erro_texto(exc)}"
+            ),
+        )
+
+        return {
+            **linha.resumo(),
+            "status": registro.status,
+            "acao": "envio_indeterminado",
+            "mensagem": registro.erro_mensagem,
+            "guia_id": registro.id,
+        }
+
     try:
         numero_recibo = _extrair_numero_recibo(resposta.conteudo)
+
     except Exception as exc:
-        registro = _criar_registro_base(linha)
-        registro.status = STATUS_ERRO_CONSULTA
-        registro.erro_mensagem = (
-            "Envio concluído, porém o recibo não pôde ser identificado na resposta. "
-            "Não reenviar automaticamente. "
-            f"Detalhes: {_erro_texto(exc)}"
-        )[:2000]
-        registro = _salvar(db, registro)
+        registro = _atualizar_registro(
+            db,
+            registro,
+            status=STATUS_ERRO_CONSULTA,
+            mensagem=(
+                "Envio concluído, porém o recibo não pôde "
+                "ser identificado na resposta. "
+                "Não reenviar automaticamente. "
+                f"Detalhes: {_erro_texto(exc)}"
+            ),
+        )
+
         return {
             **linha.resumo(),
             "status": registro.status,
@@ -476,10 +521,14 @@ def _emitir_nova_guia(
             "guia_id": registro.id,
         }
 
-    registro = _criar_registro_base(linha)
-    registro.numero_recibo = numero_recibo
-    registro.erro_mensagem = "Recibo obtido. Consultando resultado GNRE."
-    registro = _salvar(db, registro)
+    registro = _atualizar_registro(
+        db,
+        registro,
+        status=STATUS_ERRO_CONSULTA,
+        mensagem="Recibo obtido. Consultando resultado GNRE.",
+        numero_recibo=numero_recibo,
+    )
+    time.sleep(30)
 
     retorno_consulta = _consultar_recibo_e_atualizar(
         db,
@@ -492,6 +541,7 @@ def _emitir_nova_guia(
         **retorno_consulta,
         "acao": "emitida_e_consultada",
     }
+
 
 
 def processar_planilha_gnre(

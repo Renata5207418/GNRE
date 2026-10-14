@@ -126,13 +126,14 @@ def _validar_linha(linha_excel: int, valores: dict) -> dict:
         valor = None
         erros.append(str(exc))
 
-    # Preserva a regra original: valor vazio ou zero ignora a linha.
-    if not erros and (valor is None or valor == 0):
+    # Somente valor não preenchido é ignorado.
+    # Valores zerados (0,00) são válidos e devem ser processados.
+    if not erros and valor is None:
         return {
             "linha_excel": linha_excel,
             "status": "ignorada",
             "erros": [],
-            "avisos": ["Linha ignorada: Valor Tipo 11 vazio ou zero."],
+            "avisos": ["Linha ignorada: Valor Tipo 11 não preenchido."],
             "dados": {},
         }
 

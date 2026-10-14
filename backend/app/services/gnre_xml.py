@@ -74,9 +74,8 @@ def gerar_xml_gnre(guia: GuiaParaXML) -> bytes:
     # --------------------------------------
     try:
         valor = Decimal(str(guia.valor_tipo_11))
-
-        if not valor.is_finite() or valor <= 0:
-            raise ValueError("Valor Tipo 11 deve ser maior que zero.")
+        if not valor.is_finite() or valor < 0:
+            raise ValueError("Valor Tipo 11 não pode ser negativo ou inválido.")
 
         valor_formatado = str(
             valor.quantize(
